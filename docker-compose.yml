@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    restart: always
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    links:
+      - zookeeper:zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      # config para uso interno pero que no va para externo
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # change 0.0.0.0 for the required external listener
+      KAFKA_LISTENERS: LISTENER_INTERNAL://kafka:29092,LISTENER_EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_INTERNAL://kafka:29092,LISTENER_EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_INTERNAL:PLAINTEXT,LISTENER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_INTERNAL
+      KAFKA_CREATE_TOPICS: "topic1:1:1,topic2:1:1"
+
+  processor:
+    image: processor/stream-processor
+    container_name: default-processor
+    restart: always
+    depends_on:
+      - kafka
+    links:
+      - kafka:kafka
+    environment:
+      KAFKA_BROKER: kafka:29092
